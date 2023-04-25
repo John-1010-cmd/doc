@@ -2165,25 +2165,529 @@ public class AffairTest {
 
 #### 生产者分区写入策略
 
+生产者写入消息到topic，Kafka将依据不同的策略将数据分配到不同的分区中。
 
+1. 轮询分区策略
+
+   默认的策略，也是使用最多的策略，可以最大限度保证所有消息平均分配到一个分区。
+   如果在生产消息时，key为null，则使用轮询算法均衡地分配分区。
+
+2. 随机分区策略
+
+   随机策略，每次都随机地将消息分配到每个分区。在较早的版本，默认的分区策略就是随机策略，也是为了将消息均衡地写入到每个分区。但后续轮询策略表现更佳，所以基本上很少会使用随机策略。
+
+3. 按key分区分配策略
+   按key分配策略，有可能会出现“数据倾斜”，例如：某个key包含了大量的数据，因为key值一样，所有所有的数据将都分配到一个分区中，造成该分区的消息数量远大于其他的分区。
+
+4. 自定义分区策略
+
+   ```java
+   public class KeyWithRandomPartitioner implements Partitioner {
+   
+       private Random r;
+   
+       @Override
+       public void configure(Map<String, ?> configs) {
+           r = new Random();
+       }
+   
+       @Override
+       public int partition(String topic, Object key, byte[] keyBytes, Object value, byte[] valueBytes, Cluster cluster) {
+           // cluster.partitionCountForTopic 表示获取指定topic的分区数量r.nextInt(1000) 表示从随机数生成器 r 中随机生成一个小于1000的整数，其中参数1000指定了生成的随机数的范围，即生成的随机数是0到999之间的整数。在这段代码中，生成的随机数将被用于计算消息所在的分区编号。由于模运算 % cluster.partitionCountForTopic(topic) 的结果必须小于分区数量，因此这里对1000取模的目的是将随机数的范围缩小到分区数量内，以确保不会选择到超出范围的分区编号。
+           return r.nextInt(1000) % cluster.partitionCountForTopic(topic);
+       }
+   
+       @Override
+       public void close() {
+       }
+   }
+   //在Kafka生产者配置中，自定使用自定义分区器的类名
+   //props.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, KeyWithRandomPartitioner.class.getName());
+   ```
+
+   
+
+轮询策略、随机策略都会导致一个问题，生产到Kafka中的数据是乱序存储的。而按key分区可以一定程度上实现数据有序存储——也就是局部有序，但这又可能会导致数据倾斜，所以在实际生产环境中要结合实际情况来做取舍。
 
 #### 消费者组Rebalance机制
 
+##### Rebalance再均衡
+
+Kafka中的Rebalance称之为再均衡，是Kafka中确保Consumer group下所有的consumer如何达成一致，分配订阅的topic的每个分区的机制。
+
+**Rebalance触发的时机有：**
+
+1. 消费者组中consumer的个数发生变化。
+2. 订阅的topic个数发生变化。
+3. 订阅的topic分区数发生变化。
+
+##### Rebalance的不良影响
+
+- 发生Rebalance时，consumer group下的所有consumer都会协调在一起共同参与，Kafka使用分配策略尽可能达到最公平的分配
+- Rebalance过程会对consumer group产生非常严重的影响，Rebalance的过程中所有的消费者都将停止工作，直到Rebalance完成
+
 #### 消费者组分区分配策略
+
+##### Range范围分配策略
+
+Range范围分配策略是Kafka默认的分配策略，它可以确保每个消费者消费的分区数量是均衡的。**Range范围分配策略是针对每个Topic的。**
+
+**配置**
+
+配置消费者的partition.assignment.strategy为org.apache.kafka.clients.consumer.RangeAssignor。
+
+**算法公式**
+
+n = 分区数量 / 消费者数量
+
+m = 分区数量 % 消费者数量
+
+前m个消费者消费n+1个
+
+剩余消费者消费n个
+
+![image-20230425105657972](MQ.assets/image-20230425105657972.png)
+
+![image-20230425105801287](MQ.assets/image-20230425105801287.png)
+
+##### RoundRobin轮询策略
+
+RoundRobinAssignor轮询策略是将消费组内所有消费者以及消费者所订阅的所有topic的partition按照字典序排序（topic和分区的hashcode进行排序），然后通过轮询方式逐个将分区以此分配给每个消费者。
+
+**配置**
+
+配置消费者的partition.assignment.strategy为org.apache.kafka.clients.consumer.RoundRobinAssignor。
+
+![image-20230425105935361](MQ.assets/image-20230425105935361.png)
+
+##### Sticky粘性分配策略
+
+从Kafka 0.11.x开始，引入此类分配策略。主要目的：
+
+1. 分区分配尽可能均匀
+2. 在发生rebalance的时候，分区的分配尽可能与上一次分配保持相同
+
+没有发生rebalance时，Striky粘性分配策略和RoundRobin分配策略类似。
+
+![image-20230425110043092](MQ.assets/image-20230425110043092.png)
+
+如果consumer2崩溃了，此时需要进行rebalance。如果是Range分配和轮询分配都会重新进行分配，例如：
+
+![image-20230425110148890](MQ.assets/image-20230425110148890.png)
+
+consumer0和consumer1原来消费的分区大多发生了改变。看下粘性分配策略。
+
+![image-20230425110243739](MQ.assets/image-20230425110243739.png)
+
+Striky粘性分配策略，保留rebalance之前的分配结果。这样，只是将原先consumer2负责的两个分区再均匀分配给consumer0、consumer1。这样可以明显减少系统资源的浪费，例如：之前consumer0、consumer1之前正在消费某几个分区，但由于rebalance发生，导致consumer0、consumer1需要重新消费之前正在处理的分区，导致不必要的系统开销。（例如：某个事务正在进行就必须要取消了）
 
 #### 副本机制
 
+副本的目的就是冗余备份，当某个Broker上的分区数据丢失时，依然可以保障数据可用。因为在其他的Broker上的副本是可用的。
+
+**producer的ACKs参数**
+
+对副本关系较大的就是，producer配置的`acks`参数了,`acks`参数表示当生产者生产消息的时候，写入到副本的要求严格程度。它决定了生产者如何在性能和可靠性之间做取舍。
+
+**acks=0**
+
+![image-20230425110540608](MQ.assets/image-20230425110540608.png)
+
+当生产者的ACK配置为0时，不等待broker确认，直接发送下一条数据，性能最高，但可能会存在数据丢失的情况。
+
+**acks=1**
+
+![image-20230425110713611](MQ.assets/image-20230425110713611.png)
+
+当生产者的ACK配置为1时，生产者会等待leader副本确认接收后，才会发送下一条数据，性能中等。
+
+![image-20230425110732261](MQ.assets/image-20230425110732261.png)
+
+当生产者的ACK配置为-1时，生产者会等待所有leader副本已经将数据同步，才会发送下一条数据，性能最慢。
+
+| **指标**     | **单分区单副本（ack=0）**               | **单分区单副本(ack=1)**               | **单分区单副本(ack=-1/all)** |
+| ------------ | --------------------------------------- | ------------------------------------- | ---------------------------- |
+| 吞吐量       | 47359.248314 records/sec 每秒4.7W条记录 | 40763.417279 records/sec 每秒4W条记录 | 540.5 /s 每秒7.3W调记录      |
+| 吞吐速率     | 45.17 MB/sec 每秒约45MB数据             | 38.88 MB/sec 每秒约89MB数据           | 0.52 MB/sec                  |
+| 平均延迟时间 | 686.49 ms avg latency                   | 799.67 ms avg latency                 | 120281.8 ms                  |
+| 最大延迟时间 | 1444.00 ms max latency                  | 1961.00 ms max latency                | 1884.00 ms                   |
+
 ### 高级API与低级API
+
+#### 高级API
+
+```java
+/**
+ * 消费者程序：从test主题中消费数据
+ */
+public class _2ConsumerTest {
+    public static void main(String[] args) {
+        // 1. 创建Kafka消费者配置
+        Properties props = new Properties();
+        props.setProperty("bootstrap.servers", "192.168.88.100:9092");
+        props.setProperty("group.id", "test");
+        props.setProperty("enable.auto.commit", "true");
+        props.setProperty("auto.commit.interval.ms", "1000");
+        props.setProperty("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+        props.setProperty("value.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
+
+        // 2. 创建Kafka消费者
+        KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
+
+        // 3. 订阅要消费的主题
+        consumer.subscribe(Arrays.asList("test"));
+
+        // 4. 使用一个while循环，不断从Kafka的topic中拉取消息
+        while (true) {
+            // 定义100毫秒超时
+            ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100));
+            for (ConsumerRecord<String, String> record : records)
+                System.out.printf("offset = %d, key = %s, value = %s%n", record.offset(), record.key(), record.value());
+        }
+    }
+}
+
+```
+
+- 消费Kafka的消息很容易实现，写起来比较简单
+- 不需要执行去管理`offset`，直接通过ZK管理；也不需要管理分区、副本，由Kafka统一管理
+- 消费者会自动根据上一次在ZK中保存的`offset`去接着获取数据
+- 在ZK中，不同的消费者组（group）同一个topic记录不同的`offset`，这样不同程序读取同一个topic，不会受`offset`的影响
+
+**高级API的缺点**
+
+- 不能控制offset，例如：想从指定的位置读取
+- 不能细化控制分区、副本、ZK等
+
+#### 低级API
+
+通过使用低级API，我们可以自己来控制offset，想从哪儿读，就可以从哪儿读。而且，可以自己控制连接分区，对分区自定义负载均衡。而且，之前offset是自动保存在ZK中，使用低级API，我们可以将offset不一定要使用ZK存储，我们可以自己来存储offset。例如：存储在文件、MySQL、或者内存中。但是低级API，比较复杂，需要执行控制offset，连接到哪个分区，并找到分区的leader。
+
+#### 手动消费分区数据
+
+我们让Kafka根据消费组中的消费者动态地为topic分配要消费的分区。但在某些时候，我们需要指定要消费的分区，例如：
+
+- 如果某个程序将某个指定分区的数据保存到外部存储中，例如：Redis、MySQL，那么保存数据的时候，只需要消费该指定的分区数据即可
+- 如果某个程序是高可用的，在程序出现故障时将自动重启(例如：后面我们将学习的Flink、Spark程序)。这种情况下，程序将从指定的分区重新开始消费数据。
+
+如何进行手动消费分区中的数据呢？
+
+1. 不再使用之前的 subscribe 方法订阅主题，而使用  assign 方法指定想要消费的消息
+
+   ```java
+   String topic = "test";
+       TopicPartition partition0 = new TopicPartition(topic, 0);
+       TopicPartition partition1 = new TopicPartition(topic, 1);
+       consumer.assign(Arrays.asList(partition0, partition1));
+   ```
+
+2. 一旦指定了分区，就可以就像前面的示例一样，在循环中调用 poll 方法消费消息。
+
+**注意**
+
+1. 当手动管理消费分区时，即使GroupID是一样的，Kafka的组协调器都将不再起作用
+2. 如果消费者失败，也将不再自动进行分区重新分配
 
 ### Kafka原理
 
+#### leader和follower
+
+在Kafka中，每个topic都可以配置多个分区以及多个副本。每个分区都有一个leader以及0个或者多个follower，在创建topic时，Kafka会将每个分区的leader均匀地分配在每个broker上。我们正常使用kafka是感觉不到leader、follower的存在的。但其实，所有的读写操作都是由leader处理，而所有的follower都复制leader的日志数据文件，如果leader出现故障时，follower就会被选举为leader。所以，可以这样说：
+
+- Kafka中的leader负责处理读写操作，而follower只负责副本数据的同步
+- 如果leader出现故障，其他follower会被重新选举为leader
+- follower像一个consumer一样，拉取leader对应分区的数据，并保存到日志数据文件中
+
+![image-20230425111819019](MQ.assets/image-20230425111819019.png)
+
+#### AR、ISR、OSR
+
+在实际环境中，leader有可能会出现一些故障，所以Kafka一定会选举出新的leader。在讲解leader选举之前，我们先要明确几个概念。Kafka中，把follower可以按照不同状态分为三类——AR、ISR、OSR。
+
+- 分区的所有副本称为 AR （Assigned Replicas——已分配的副本）
+- 所有与leader副本保持一定程度同步的副本（包括 leader 副本在内）组成 ISR  （In-Sync Replicas——在同步中的副本）
+- 由于follower副本同步滞后过多的副本（不包括 leader 副本）组成 OSR （Out-of-Sync Replias）
+- AR = ISR + OSR
+- 正常情况下，所有的follower副本都应该与leader副本保持同步，即AR = ISR，OSR集合为空。
+
+#### leader选举
+
+##### controller介绍
+
+- Kafka启动时，会在所有的broker中选择一个controller
+- 前面leader和follower是针对partition，而controller是针对broker的
+- 创建topic、或者添加分区、修改副本数量之类的管理任务都是由controller完成的
+- Kafka分区leader的选举，也是由controller决定的
+
+##### controller选举
+
+- 在Kafka集群启动的时候，每个broker都会尝试去ZooKeeper上注册成为Controller（ZK临时节点）
+- 但只有一个竞争成功，其他的broker会注册该节点的监视器
+- 一点该临时节点状态发生变化，就可以进行相应的处理
+- Controller也是高可用的，一旦某个broker崩溃，其他的broker会重新注册为Controller
+
+##### Controller选举partition leader
+
+- 所有Partition的leader选举都由controller决定
+- controller会将leader的改变直接通过RPC的方式通知需为此作出响应的Broker
+- controller读取到当前分区的ISR，只要有一个Replica还幸存，就选择其中一个作为leader否则，则任意选这一个Replica作为leader
+- 如果该partition的所有Replica都已经宕机，则新的leader为-1
+
+具体来说，当一个分区的 leader 副本失效时，follower 副本会发现并向其它 broker 节点发送请求，申请成为该分区的新 leader。同时，每个 broker 节点会周期性地向 controller 节点发送心跳请求，汇报自己当前的状态和可用性信息。controller 节点会根据这些信息，选择一个健康的、可用的 broker 节点作为该分区的新 leader。
+
+在选举新 leader 的过程中，controller 节点会参考如下因素：
+
+1. 副本状态：只有处于 ISR（in-sync replicas）列表中的 follower 副本才有资格成为新 leader，因为它们的数据已经与 leader 同步。
+2. 副本位置：controller 节点会选择与原 leader 副本相同或更靠前的位置作为新 leader 的位置，以确保最小化数据丢失。
+3. 副本健康状况：controller 节点会优先选择健康的、可用的 broker 节点作为新 leader，以确保高可用性和服务质量。
+
+总之，controller 节点会综合考虑多个因素，选出一个最适合成为新 leader 的 broker 节点，从而保障 Kafka 集群的高可用性和稳定性。
+
+**为什么不能通过ZK的方式来选举partition的leader？**
+
+- Kafka集群如果业务很多的情况下，会有很多的partition
+- 假设某个broker宕机，就会出现很多的partiton都需要重新选举leader
+- 如果使用zookeeper选举leader，会给zookeeper带来巨大的压力。所以，kafka中leader的选举不能使用ZK来实现
+
+#### leader负载均衡
+
+**Preferred Replica**
+
+- Kafka中引入了一个叫做 preferred-replica 的概念，意思就是：优先的Replica
+
+- 在ISR列表中，第一个replica就是 preferred-replica 
+
+- 第一个分区存放的broker，肯定就是 preferred-replica 
+
+- 执行以下脚本可以将preferred-replica设置为leader，均匀分配每个分区的leader。
+
+  ```shell
+  ./kafka-leader-election.sh --bootstrap-server node1.itcast.cn:9092 --topic 主题 --partition=1 --election-type preferred
+  ```
+
+  
+
+#### Kafka生产、消费数据工作流程
+
+##### Kafka数据写入流程
+
+![image-20230425125445285](MQ.assets/image-20230425125445285.png)
+
+- 生产者先从 zookeeper 的 “/brokers/topics/主题名/partitions/分区名/state”节点找到该 partition 的leader。
+- 生产者在ZK中找到该ID找到对应的broker。
+- broker进程上的leader将消息写入到本地log中。
+- follower从leader上拉取消息，写入到本地log，并向leader发送ACK。
+- leader接收到所有的ISR中的Replica的ACK后，并向生产者返回ACK。
+
+##### Kafka数据消费流程
+
+**两种消费模式**
+
+![image-20230425152007529](MQ.assets/image-20230425152007529.png)
+
+- kafka采用拉取模型，由消费者自己记录消费状态，每个消费者互相独立地顺序拉取每个分区的消息
+- 消费者可以按照任意的顺序消费消息。比如，消费者可以重置到旧的偏移量，重新处理之前已经消费过的消息；或者直接跳到最近的位置，从当前的时刻开始消费。
+
+![image-20230425153108866](MQ.assets/image-20230425153108866.png)
+
+- 每个consumer都可以根据分配策略（默认RangeAssignor），获得要消费的分区
+- 获取到consumer对应的offset（默认从ZK中获取上一次消费的offset）
+- 找到该分区的leader，拉取数据
+- 消费者提交offset
+
+#### Kafka数据存储模式
+
+![image-20230425153225100](MQ.assets/image-20230425153225100.png)
+
+- 一个topic由多个分区组成
+- 一个分区（partition）由多个segment（段）组成
+- 一个segment（段）由多个文件组成（log、index、timeindex）
+
+**存储日志**
+
+Kafka中的数据是保存在 /export/server/kafka_2.12-2.4.1/data中，消息是保存在以：「主题名-分区ID」的文件夹中的
+
+| 文件名                         | 说明                                                         |
+| ------------------------------ | ------------------------------------------------------------ |
+| 00000000000000000000.index     | 索引文件，根据offset查找数据就是通过该索引文件来操作的       |
+| 00000000000000000000.log       | 日志数据文件                                                 |
+| 00000000000000000000.timeindex | 时间索引                                                     |
+| leader-epoch-checkpoint        | 持久化每个partition leader对应的LEO （log end offset、日志文件中下一条待写入消息的offset） |
+
+每个日志文件的文件名为起始偏移量，因为每个分区的起始偏移量是0，所以，分区的日志文件都以0000000000000000000.log开始
+
+默认的每个日志文件最大为 log.segment.bytes =1024* 1024* 1024 =1G
+
+为了简化根据offset查找消息，Kafka日志文件名设计为开始的偏移量
+
+**写入消息**
+
+新的消息总是写入到最后的一个日志文件中
+
+该文件如果到达指定的大小（默认为：1GB）时，将滚动到一个新的文件中
+
+**读取消息**
+
+- 根据 offset 首先需要找到存储数据的 segment 段（注意：offset指定分区的全局偏移量）
+
+- 然后根据这个 全局分区offset 找到相对于文件的 segment段offset 
+
+- 最后再根据 segment段offset 读取消息
+- 为了提高查询效率，每个文件都会维护对应的范围内存，查找的时候就是使用简单的二分查找
+
+![image-20230425153617509](MQ.assets/image-20230425153617509.png)
+
+![image-20230425153757389](MQ.assets/image-20230425153757389.png)
+
+**删除消息**
+
+- 在Kafka中，消息是会被**定期清理**的。一次删除一个segment段的日志文件
+- Kafka的日志管理器，会根据Kafka的配置，来决定哪些文件可以被删除
+
+1. log.segment.bytes：该参数指定了每个日志段的大小，一般设置为 1GB ~ 4GB 之间。当一个日志段达到该大小时，就会被关闭并生成一个新的日志段。
+2. log.retention.hours：该参数指定了消息在日志中保存的最长时间。超过这个时间的消息将被删除。
+
+具体来说，Kafka 会删除所有满足以下条件的日志段：
+
+1. 该日志段最后一条消息的时间戳早于 log.retention.hours，即已经过期。
+2. 该日志段所在的主题中已经有一个或多个日志段的大小超过了 log.segment.bytes，即已经被关闭并生成新的日志段。
+
+需要注意的是，在 Kafka 中，删除数据并不会立即释放磁盘空间。Kafka 会将已经被删除的数据存放在一个特殊的文件中，称为删除日志（Delete Log）。删除日志中记录了所有已经被删除的消息的 offset，以及对应的主题和分区信息。当 Kafka 系统空闲时，会启动一个线程来清理删除日志，并且释放对应的磁盘空间。
+
+#### 消息不丢失机制
+
+##### broker数据不丢失
+
+生产者通过分区的leader写入数据后，所有在ISR中follower都会从leader中复制数据，这样，可以确保即使leader崩溃了，其他的follower的数据仍然是可用的
+
+##### 生产者数据不丢失
+
+- 生产者连接leader写入数据时，可以通过ACK机制来确保数据已经成功写入。ACK机制有三个可选配置
+  1. 配置ACK响应要求为 -1 时 —— 表示所有的节点都收到数据(leader和follower都接收到数据）
+  2. 配置ACK响应要求为 1 时 —— 表示leader收到数据
+  3. 配置ACK影响要求为 0 时 —— 生产者只负责发送数据，不关心数据是否丢失（这种情况可能会产生数据丢失，但性能是最好的）
+
+- 生产者可以采用同步和异步两种方式发送数据
+  1. 同步：发送一批数据给kafka后，等待kafka返回结果
+  2. 异步：发送一批数据给kafka，只是提供一个回调函数。
+
+说明：如果broker迟迟不给ack，而buﬀer又满了，开发者可以设置是否直接清空buﬀer中的数据。
+
+##### 消费者数据不丢失
+
+在消费者消费数据的时候，只要每个消费者记录好oﬀset值即可，就能保证数据不丢失。
+
+#### 数据积压
+
+Kafka消费者消费数据的速度是非常快的，但如果由于处理Kafka消息时，由于有一些外部IO、或者是产生网络拥堵，就会造成Kafka中的数据积压（或称为数据堆积）。如果数据一直积压，会导致数据出来的实时性受到较大影响。
+
+1. 数据写入MySQL失败
+2. 网络延迟导致消费失败
+
 ### Kafka数据清理
 
+Kafka的消息存储在磁盘中，为了控制磁盘占用空间，Kafka需要不断地对过去的一些消息进行清理工作。Kafka的每个分区都有很多的日志文件，这样也是为了方便进行日志的清理。在Kafka中，提供两种日志清理方式：
+
+日志删除（Log Deletion）：按照指定的策略**直接删除**不符合条件的日志。
+
+日志压缩（Log Compaction）：按照消息的key进行整合，有相同key的但有不同value值，只保留最后一个版本。
+
+在Kafka的broker或topic配置中：
+
+| 配置项             | 配置值         | 说明                 |
+| ------------------ | -------------- | -------------------- |
+| log.cleaner.enable | true（默认）   | 开启自动清理日志功能 |
+| log.cleanup.policy | delete（默认） | 删除日志             |
+| log.cleanup.policy | compaction     | 压缩日志             |
+| log.cleanup.policy | delete,compact | 同时支持删除、压缩   |
+
+**日志删除**
+
+日志删除是以段（segment日志）为单位来进行定期清理的。
+
+##### 定时日志删除任务
+
+Kafka日志管理器中会有一个专门的日志删除任务来定期检测和删除不符合保留条件的日志分段文件，这个周期可以通过broker端参数log.retention.check.interval.ms来配置，默认值为300,000，即5分钟。当前日志分段的保留策略有3种：
+
+1. 基于时间的保留策略
+2. 基于日志大小的保留策略
+3. 基于日志起始偏移量的保留策略
+
+##### 基于时间的保留策略
+
+如果Kafka中的消息超过指定的阈值，就会将日志进行自动清理：
+
+- log.retention.hours
+- log.retention.minutes
+- log.retention.ms
+
+其中，优先级为 log.retention.ms > log.retention.minutes > log.retention.hours。默认情况，在broker中，配置如下：
+
+log.retention.hours=168
+
+也就是，默认日志的保留时间为168小时，相当于保留7天。
+
+删除日志分段时:
+
+1. 从日志文件对象中所维护日志分段的跳跃表中移除待删除的日志分段，以保证没有线程对这些日志分段进行读取操作
+2. 将日志分段文件添加上“.deleted”的后缀（也包括日志分段对应的索引文件）
+
+Kafka的后台定时任务会定期删除这些“.deleted”为后缀的文件，这个任务的延迟执行时间可以通过file.delete.delay.ms参数来设置，默认值为60000，即1分钟。
+
+##### 基于日志大小的保留策略
+
+日志删除任务会检查当前日志的大小是否超过设定的阈值来寻找可删除的日志分段的文件集合。可以通过broker端参数 log.retention.bytes 来配置，默认值为-1，表示无穷大。如果超过该大小，会自动将超出部分删除。
+
+注意:
+
+log.retention.bytes 配置的是日志文件的总大小，而不是单个的日志分段的大小，一个日志文件包含多个日志分段。
+
+##### 基于日志起始偏移量的保留策略
+
+每个segment日志都有它的起始偏移量，如果起始偏移量小于 logStartOffset，那么这些日志文件将会标记为删除。
+
+#### 日志压缩
+
+Log Compaction是默认的日志删除之外的清理过时数据的方式。它会将相同的key对应的数据只保留一个版本。
+
+![image-20230425161750968](MQ.assets/image-20230425161750968.png)
+
+- Log Compaction执行后，offset将不再连续，但依然可以查询Segment
+- Log Compaction执行前后，日志分段中的每条消息偏移量保持不变。Log Compaction会生成一个新的Segment文件
+- Log Compaction是针对key的，在使用的时候注意每个消息的key不为空
+- 基于Log Compaction可以保留key的最新更新，可以基于Log Compaction来恢复消费者的最新状态
+
 ### Kafka配额限速机制
+
+生产者和消费者以极高的速度生产/消费大量数据或产生请求，从而占用broker上的全部资源，造成网络IO饱和。有了配额（Quotas）就可以避免这些问题。Kafka支持配额管理，从而可以对Producer和Consumer的produce&fetch操作进行流量限制，防止个别业务压爆服务器。
+
+**限制producer端速率**
+
+```shell
+#所有producer程序设置其TPS不超过1MB/s，即1048576/s
+bin/kafka-configs.sh --zookeeper node1.itcast.cn:2181 --alter --add-config 'producer_byte_rate=1048576' --entity-type clients --entity-default
+```
+
+**限制consumer端速率**
+
+```shell
+#所有consumer程序设置topic速率不超过1MB/s，即1048576/s。
+bin/kafka-configs.sh --zookeeper node1.itcast.cn:2181 --alter --add-config 'consumer_byte_rate=1048576' --entity-type clients --entity-default
+```
+
+**取消Quota配置**
+
+```shell
+#使用以下命令，删除Kafka的Quota配置
+bin/kafka-configs.sh --zookeeper node1.itcast.cn:2181 --alter --delete-config 'producer_byte_rate' --entity-type clients --entity-default
+bin/kafka-configs.sh --zookeeper node1.itcast.cn:2181 --alter --delete-config 'consumer_byte_rate' --entity-type clients --entity-default
+```
 
 
 
 ## ActiveMQ
+
+## RocketMQ
 
 
 
