@@ -1,3 +1,14 @@
+---
+title: Redis
+date: 2023-04-27
+updated : 2023-04-27
+categories: 
+- Redis
+tags: 
+- Redis
+description: 这是显示在首页的概述，正文内容均会被隐藏。
+---
+
 ## 认识Redis
 
 Redis是一个基于内存的键值对NoSQL数据库。
