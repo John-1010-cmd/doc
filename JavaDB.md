@@ -43,7 +43,7 @@ JavaDB分为后端和前端，前后端通过 socket 进行交互。前端（客
 
 五个模块的依赖关系如下：
 
-![img](JavaDB.assets/9138ed26-22ed-4dac-bbd8-2701e723d485.jpeg)
+![img](JavaDB/9138ed26-22ed-4dac-bbd8-2701e723d485.jpeg)
 
 每个模块的职责如下：
 
