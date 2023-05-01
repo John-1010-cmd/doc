@@ -7,7 +7,7 @@ categories:
 tags: 
 - IO
 - Netty
-description: 这是显示在首页的概述，正文内容均会被隐藏。
+description: 这是一篇关于IO的Blog，介绍了BIO、伪异步IO、NIO、AIO和Netty。
 ---
 
 |             | BIO    | 伪异步IO | NIO      | AIO      |

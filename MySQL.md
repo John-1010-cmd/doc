@@ -6,7 +6,7 @@ categories:
 - MySQL
 tags: 
 - MySQL
-description: 这是显示在首页的概述，正文内容均会被隐藏。
+description: 这是一篇关于MySQL的长篇Blog，主要介绍了索引、MySQL锁、MySQL日志、MVCC、@Transaction注解、分库分表。
 ---
 
 ## 索引

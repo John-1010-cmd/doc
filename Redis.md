@@ -6,7 +6,7 @@ categories:
 - Redis
 tags: 
 - Redis
-description: 这是显示在首页的概述，正文内容均会被隐藏。
+description: 这是一篇关于Redis的Blog。
 ---
 
 ## 认识Redis

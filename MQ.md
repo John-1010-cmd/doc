@@ -6,7 +6,9 @@ categories:
 - MQ
 tags: 
 - MQ
-description: 这是显示在首页的概述，正文内容均会被隐藏。
+- RabbitMQ
+- Kafka
+description: 这是一篇关于MQ的长篇Blog，介绍了RabbitMQ和Kafka。
 ---
 
 ## MQ的分类
