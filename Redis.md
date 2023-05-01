@@ -1,7 +1,8 @@
 ---
 title: Redis
 date: 2023-04-27
-updated : 2023-04-27
+updated : 2023-05-01
+top: 3
 categories: 
 - Redis
 tags: 
