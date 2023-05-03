@@ -79,9 +79,9 @@ handler ：表示当 workQueue 已满，且池中的线程数达到 maximumPoolS
 
 Executors类的底层实现便是ThreadPoolExecutor！ Executors 工厂方法有：
 
-Executors.newCachedThreadPool()：无界线程池，可以进行自动线程回收
-Executors.newFixedThreadPool(int)：固定大小线程池
-Executors.newSingleThreadExecutor()：单个后台线程
+- Executors.newCachedThreadPool()：无界线程池，可以进行自动线程回收
+- Executors.newFixedThreadPool(int)：固定大小线程池
+- Executors.newSingleThreadExecutor()：单个后台线程
 
 ## 线程池相关接口介绍
 
