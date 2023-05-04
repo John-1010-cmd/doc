@@ -167,6 +167,8 @@ jmap -dump:format=b,file=heap.hprof PID
 
 ![image-20230504110513065](JVM问题排查/image-20230504110513065.png)
 
+> 参考资料来源：
+>
 > https://blog.csdn.net/qq_35958391/article/details/124367061?spm=1001.2014.3001.5502
 >
 > https://blog.csdn.net/qq_35958391/article/details/124367955
