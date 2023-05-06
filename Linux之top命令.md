@@ -5,6 +5,7 @@ updated : 2023-05-04
 categories: 
 - Linux
 tags: 
+- Linux
 - top
 description: 这是一篇关于Linux的top命令的Blog。
 ---
