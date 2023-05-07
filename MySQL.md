@@ -1,13 +1,13 @@
 ---
 title: MySQL
 date: 2023-04-27
-updated : 2023-05-01
+updated : 2023-05-07
 top: 4
 categories: 
 - MySQL
 tags: 
 - MySQL
-description: 这是一篇关于MySQL的长篇Blog，主要介绍了索引、MySQL锁、MySQL日志、MVCC、@Transaction注解、分库分表。
+description: 这是一篇关于MySQL的长篇Blog，主要介绍了索引、MySQL锁、MySQL日志、MVCC、Flush、LRU队列、@Transaction注解、分库分表。
 ---
 
 ## 索引
@@ -472,6 +472,70 @@ MVCC的目的就是多版本并发控制，在数据库中的实现，就是为�
 #### Read View
 
 在 MySQL 中，每个事务都有一个 Read View，用于记录该事务开始时间的快照信息。Read View 中记录了所有活跃事务的版本信息，包括该事务本身以及其他事务。在查询时，MySQL 会根据 Read View 来判断每个数据行对该事务是否可见。
+
+## Flush
+
+把内存里的数据写入磁盘的过程，术语就是 flush。
+
+当内存数据页跟磁盘数据页内容不一致的时候，我们称这个内存页为“脏页”。内存数据写入到磁盘后，内存和磁盘上的数据页的内容就一致了，称为“干净页”。
+
+什么情况会引发数据库的 flush 过程呢？
+
+- 第一种场景是，对应的就是 InnoDB 的 redo log 写满了。这时候系统会停止所有更新操作，把 checkpoint 往前推进，redo log 留出空间可以继续写；
+  “redo log 写满了，要 flush 脏页”，这种情况是 InnoDB 要尽量避免的。因为出现这种情况的时候，整个系统就不能再接受更新了，所有的更新都必须堵住。如果你从监控上看，这时候更新数会跌为 0。
+
+- 第二种场景，对应的就是系统内存不足。当需要新的内存页，而内存不够用的时候，就要淘汰一些数据页，空出内存给别的数据页使用。如果淘汰的是“脏页”，就要先将脏页写到磁盘。该场景类似于发生了front write；
+
+  “内存不够用了，要先将脏页写到磁盘”，这种情况其实是常态。InnoDB 用缓冲池（buffer pool）管理内存，缓冲池中的内存页有三种状态：还没有使用的；使用了并且是干净页；使用了并且是脏页。
+  当要读入的数据页没有在内存的时候，就必须到缓冲池中申请一个数据页。这时候只能把最久不使用的数据页从内存中淘汰掉（类似于LRU队列）：如果要淘汰的是一个干净页，就直接释放出来复用；但如果是脏页呢，就必须将脏页先刷到磁盘，变成干净页后才能复用。
+
+- 第三种场景，对应的就是 MySQL 认为系统“空闲”的时候；
+
+- 第四种场景，对应的就是 MySQL 正常关闭的情况。这时候，MySQL 会把内存的脏页都 flush 到磁盘上，这样下次 MySQL 启动的时候，就可以直接从磁盘上读数据，启动速度会很快。
+
+InnoDB 的刷盘速度就是要参考这两个因素：一个是脏页比例，一个是 redo log 写盘速度。参数 innodb_max_dirty_pages_pct 是脏页比例上限，默认值是 75%。脏页比例是通过Innodb_buffer_pool_pages_dirty/Innodb_buffer_pool_pages_total 得到的。
+
+MySQL 中的一个机制，可能让你的查询会更慢：
+
+在准备刷一个脏页的时候，如果这个数据页旁边的数据页刚好是脏页，就会把这个“邻居”也带着一起刷掉；而且这个把“邻居”拖下水的逻辑还可以继续蔓延，也就是对于每个邻居数据页，如果跟它相邻的数据页也还是脏页的话，也会被放到一起刷。
+
+在 InnoDB 中，innodb_flush_neighbors 参数就是用来控制这个行为的，值为 1 的时候会有上述的“连坐”机制，值为 0 时表示不找邻居，自己刷自己的，mysql8中的默认值为0。
+
+## LRU队列
+
+MySQL的缓冲池（innodb_buffer_pool_instances，innodb_buffer_pool_size）是通过LRU算法来进行管理的。即最频繁使用的页在LRU列表的最前端，而最少使用的页在LRU列表的尾端。当缓冲池不能存放新读取到的页时，将首先释放LRU列表尾端的页。
+
+在INNODB引擎中，缓冲池页的大小默认为16KB。
+
+在INNODB引擎中，有一个midpoint位置。新读取到的页，虽然是最新访问的页，但并不直接放到LRU队列的首部，而是放到LRU列表的midpoint位置。
+
+midpoint位置是通过参数innodb_old_blocks_pct来控制的。表示新读取的页插入到LRU列表尾端的37%的位置。在INNODB中，把midpoint之后的列表称为old列表，之前的列表称为new列表。可以简单的理解为new列表中的页都是活跃的热点数据。
+
+为什么不把读入的页直接放入LRU队列的首部呢？是因为如此做可能会把大量频繁使用的数据页换出LRU队列，带来再次磁盘读取的IO压力。
+
+数据页在midpoint位置，什么情况下会进入NEW列表呢？是通过参数innodb_old_blocks_time来控制的。该参数表示，页读取到midpoint位置后需要等多久才会被加入到LRU队列的热端。
+
+当数据库刚启动的时候，LRU列表是空的，所有的页都放在FREE列表中。当需要重缓冲池中分页时，首先从FREE列表中查找是否有可用的空闲页，如果有则将该页从FREE列表中删除，放入LRU列表中；如果没有，则根据LRU算法，淘汰LRU列表尾部的页，将该内存空间分配给新的页。
+
+当页从LRU列表的OLD部分加入到NEW部分时，称此时发生的操作为page made young；如果因为innodb_old_blocks_time的设置导致页没有从old部分移动到new部分的操作，称为page not made young。
+
+通过命令 show engine innodb status\G;可以查看LRU队列的使用情况。
+
+**观察缓冲池的运行状态：**
+
+```sql
+select pool_id,hit_rate,pages_made_young,pages_not_made_young from information_schema.innodb_buffer_pool_stats\G;
+```
+
+**查看LRU列表中每个页的具体信息：**
+
+```sql
+select table_name,space,page_number,page_type from information_schema.innodb_buffer_page_lru where space=1;
+```
+
+**脏页的刷新：**
+
+脏页既存在于LRU列表中，也存在于Flush列表中。LRU列表用来管理缓冲池中页的可用性，Flush列表用来管理将页刷新回磁盘，二者互不影响。
 
 ## @Transactional注解
 
