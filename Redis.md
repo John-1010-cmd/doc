@@ -76,13 +76,9 @@ Redis是一个key-value的数据库，key一般是String类，不过value的类�
 #### Hash命令
 
 - HSET key field value：添加或者修改hash类型key的field的值
-
 - HGET key field：获取一个hash类型key的field的值
-
 - HMSET：批量添加多个hash类型key的field的值
-
 - HMGET：批量获取多个hash类型key的field的值
-
 - HGETALL：获取一个hash类型的key中的所有的field和value
 - HKEYS：获取一个hash类型的key中的所有的field
 - HINCRBY:让一个hash类型key的字段值自增并指定步长
