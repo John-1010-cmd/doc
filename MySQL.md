@@ -1,7 +1,7 @@
 ---
 title: MySQL
 date: 2023-04-27
-updated : 2023-05-07
+updated : 2023-05-15
 top: 4
 categories: 
 - MySQL
@@ -207,8 +207,19 @@ InnoDB与MyIsam的最大不同有两点：
 
 - 更新丢失（Lost update）：两个或多个事务选择同一行，最后的更新覆盖其他事务所做的更新。
 - 脏读（Dirty read）：一个事务修改一条记录，事务提交前，另一个书屋读取了这些“脏”的数据。
-- 不可重重复读（Non-Repeatable reads）：一个事务在读取某些数据已经发生了改变，或某些记录已经被删除。
+- 不可重复读（Non-Repeatable reads）：一个事务在读取某些数据已经发生了改变，或某些记录已经被删除。
 - 幻读（Phantom reads）：一个事务按相同的查询条件重新读取以前检索过的数据，却发现其他事务插入了满足其查询条件的新数据。
+
+#### 四种隔离级别
+
+- RU：
+  Read Uncommited，读未提交，可以读到其他事务修改了但没有提交的数据。
+- RC：
+  Read Commited，读已提交，可以读到其他事务已提交的数据，可以避免脏读、脏写。
+- RR：
+  Read Repeated，可重复读，不会读到别的已经提交事务修改的数据，可以避免脏读、脏写、不可重复读。
+- SERIALIZABLE：
+  让所有事务都串行执行，可以避免所有问题，但是效率很低，会大大降低并发。
 
 #### InnoDB都有哪些锁
 
@@ -377,7 +388,7 @@ redo log 的设计目标是支持innodb的“事务”的特性，事务ACID特�
 
 #### redo log刷盘时机
 
-1. redo lo占用的空间是一定的，并不会无线增大（可以通过参数设置），写入的时候是进顺序写的，所以写入的性能比较高。当redo log空间满了之后又会从头开始以循环的方式进行覆盖式的写入。
+1. redo log占用的空间是一定的，并不会无线增大（可以通过参数设置），写入的时候是进顺序写的，所以写入的性能比较高。当redo log空间满了之后又会从头开始以循环的方式进行覆盖式的写入。
 2. 在写入redo log的时候也有一个redo log buffer，日志什么时候会刷到磁盘是通过innodb_flush_log_at_trx_commit 参数决定。
    - innodb_flush_log_at_trx_commit=0 ，表示每次事务提交时都只是把 redo log 留在 redo log buffer 中，只有当buffer中存储了多个事务日志才会刷入磁盘中;
    - innodb_flush_log_at_trx_commit=1，表示每次事务提交时都将 redo log 直接持久化到磁盘；
