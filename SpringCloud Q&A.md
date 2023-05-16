@@ -5,8 +5,8 @@ updated : 2023-05-16
 categories: 
 - 分布式
 tags: 
-- SpringCloud Netflix
-- SpringCloud Alibaba
+- Spring Cloud Netflix
+- Spring Cloud Alibaba
 description: 这是一篇关于SpringCloud Q&A的Blog。
 ---
 
