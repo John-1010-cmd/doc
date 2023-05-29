@@ -50,7 +50,8 @@ insert buffer 只适用于 non-unique secondary indexes 也就是说只能用在
 3. 当一个辅助索引需要插入到页（space， offset）时，如果这个页不在缓冲池中，那么InnoDB首先根据上述规则构造一个search key，接下来查询insert buffer这棵B+树，然后再将这条记录插入到insert buffer B+树的叶子节点中
 
 4. 对于插入到insert buffer B+树叶子节点的记录，需要根据如下规则进行构造：
-   space | marker | offset | metadata | secondary index record启用insert buffer索引后，辅助索引页（space、page_no）中的记录可能被插入到insert buffer B+树中，所以为了保证每次merge insert buffer页必须成功，还需要有一个特殊的页来标记每个辅助索引页（space、page_no）的可用空间，这个页的类型为insert buffer bitmap。
+   space | marker | offset | metadata | secondary index record
+   启用insert buffer索引后，辅助索引页（space、page_no）中的记录可能被插入到insert buffer B+树中，所以为了保证每次merge insert buffer页必须成功，还需要有一个特殊的页来标记每个辅助索引页（space、page_no）的可用空间，这个页的类型为insert buffer bitmap。
 
 ### insert buffer的缺点
 
