@@ -58,6 +58,8 @@ description: 这是一篇关于MQ的长篇Blog，介绍了RabbitMQ和Kafka。
 
 ## RabbitMQ
 
+![image](MQ/image.15tq7c46aeyk.webp)
+
 **名词介绍**
 
 1. Broker：接收和分发消息的应用，RabbitMQ Server 就是 Message Broker
