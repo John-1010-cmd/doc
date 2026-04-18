@@ -562,7 +562,7 @@ public class CustomRedisAutoConfiguration {
 **方式一：spring.factories**
 
 ```properties
-# src/main/resources/META-INF/spring.factories
+#​ src/main/resources/META-INF/spring.factories
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
   com.example.redis.autoconfigure.CustomRedisAutoConfiguration
 ```
@@ -570,7 +570,7 @@ org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 **方式二：AutoConfiguration.imports**
 
 ```
-# src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+#​ src/main/resources/META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
 com.example.redis.autoconfigure.CustomRedisAutoConfiguration
 ```
 

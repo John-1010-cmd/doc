@@ -304,7 +304,7 @@ public class PrototypeB {
 从 SpringBoot 2.6 开始，`spring.main.allow-circular-references` 默认为 `false`，即默认禁止循环依赖：
 
 ```yaml
-# 如果确实需要循环依赖，可以手动开启
+#​ 如果确实需要循环依赖，可以手动开启
 spring:
   main:
     allow-circular-references: true

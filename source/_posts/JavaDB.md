@@ -15,22 +15,22 @@ series_order: 7
 ## Quick Start
 
 ```shell
-# 编译源码
+#​ 编译源码
 mvn compile
 ```
 
 ```shell
-# 以 /tmp/javadb 作为路径创建数据库：
+#​ 以 /tmp/javadb 作为路径创建数据库：
 mvn exec:java -Dexec.mainClass="javadb.backend.Launcher" -Dexec.args="-create /tmp/javadb"
 ```
 
 ```shell
-# 以默认参数启动数据库服务：
+#​ 以默认参数启动数据库服务：
 mvn exec:java -Dexec.mainClass="javadb.backend.Launcher" -Dexec.args="-open /tmp/javadb"
 ```
 
 ```shell
-# 这时数据库服务就已经启动在本机的 9999 端口。重新启动一个终端，执行以下命令启动客户端连接数据库：
+#​ 这时数据库服务就已经启动在本机的 9999 端口。重新启动一个终端，执行以下命令启动客户端连接数据库：
 mvn exec:java -Dexec.mainClass="javadb.client.Launcher"
 ```
 

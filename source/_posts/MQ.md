@@ -1398,9 +1398,9 @@ spring:
     username: root
     password: 123
     publisher-confirm-type: correlated
-# NONE 值是禁用发布确认模式，是默认值
-# CORRELATED 值是发布消息成功到交换器后会触发回调方法
-# SIMPLE 值经测试有两种效果，其一效果和 CORRELATED 值一样会触发回调方法，其二在发布消息成功后使用rabbitTemplate 调用 waitForConfirms 或 waitForConfirmsOrDie 方法等待 broker 节点返回发送结果，根据返回结果来判定下一步的逻辑，要注意的点是 waitForConfirmsOrDie 方法如果返回 false 则会关闭 channel，则接下来无法发送消息到 broker
+#​ NONE 值是禁用发布确认模式，是默认值
+#​ CORRELATED 值是发布消息成功到交换器后会触发回调方法
+#​ SIMPLE 值经测试有两种效果，其一效果和 CORRELATED 值一样会触发回调方法，其二在发布消息成功后使用rabbitTemplate 调用 waitForConfirms 或 waitForConfirmsOrDie 方法等待 broker 节点返回发送结果，根据返回结果来判定下一步的逻辑，要注意的点是 waitForConfirmsOrDie 方法如果返回 false 则会关闭 channel，则接下来无法发送消息到 broker
 ```
 
 ```java
@@ -1521,14 +1521,14 @@ public class MyCallBack implements RabbitTemplate.ConfirmCallback {
 获取回退的消息，首先在配置文件开启该功能，然后需要自定义类实现 RabbitTemplate.ReturnsCallback 接口，并且初始化时，使用该自定义类作为回退消息的处理类，同时开启 Mandatory，设置为 true。
 
 ```yaml
-# 配置文件类开启
-# 新版
+#​ 配置文件类开启
+#​ 新版
 spring:
   rabbitmq:
   	template:
       mandatory: true
       
-# 旧版
+#​ 旧版
 spring:
   rabbitmq:
     mandatory: true

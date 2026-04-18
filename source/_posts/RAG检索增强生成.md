@@ -76,7 +76,7 @@ def fixed_chunk(text, chunk_size=500, overlap=50):
         start += chunk_size - overlap  # 重叠部分
     return chunks
 
-# 示例
+#​ 示例
 text = "这是一段很长的文档..." * 100
 chunks = fixed_chunk(text, chunk_size=500, overlap=50)
 print(f"切分结果：{len(chunks)} 个 chunk，每个约 500 字符")
@@ -168,8 +168,8 @@ def get_embedding(text, model="text-embedding-3-small"):
     )
     return response.data[0].embedding
 
-# text-embedding-3-small: 1536 维，性价比高
-# text-embedding-3-large: 3072 维，精度更高
+#​ text-embedding-3-small: 1536 维，性价比高
+#​ text-embedding-3-large: 3072 维，精度更高
 ```
 
 ### BGE 系列
@@ -179,11 +179,11 @@ def get_embedding(text, model="text-embedding-3-small"):
 ```python
 from sentence_transformers import SentenceTransformer
 
-# BGE-large-zh-v1.5：中文场景首选
+#​ BGE-large-zh-v1.5：中文场景首选
 model = SentenceTransformer('BAAI/bge-large-zh-v1.5')
 embeddings = model.encode(["查询文本", "候选文档1", "候选文档2"])
 
-# BGE-M3：多语言、多功能
+#​ BGE-M3：多语言、多功能
 model_m3 = SentenceTransformer('BAAI/bge-m3')
 ```
 
@@ -215,10 +215,10 @@ Milvus 是高性能的分布式向量数据库：
 ```python
 from pymilvus import connections, Collection, FieldSchema, CollectionSchema, DataType
 
-# 连接 Milvus
+#​ 连接 Milvus
 connections.connect(host="localhost", port="19530")
 
-# 创建 Collection
+#​ 创建 Collection
 fields = [
     FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
     FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=1536),
@@ -228,7 +228,7 @@ fields = [
 schema = CollectionSchema(fields, description="知识库文档")
 collection = Collection("knowledge_base", schema)
 
-# 创建索引
+#​ 创建索引
 index_params = {
     "metric_type": "COSINE",
     "index_type": "IVF_FLAT",
@@ -250,12 +250,12 @@ from pinecone import Pinecone
 pc = Pinecone(api_key="your-api-key")
 index = pc.Index("knowledge-base")
 
-# 插入向量
+#​ 插入向量
 index.upsert(vectors=[
     {"id": "doc1", "values": embedding, "metadata": {"source": "wiki"}},
 ])
 
-# 查询
+#​ 查询
 results = index.query(
     vector=query_embedding,
     top_k=5,
@@ -275,7 +275,7 @@ import weaviate
 
 client = weaviate.connect_to_local()
 
-# 混合搜索：向量 + 关键词
+#​ 混合搜索：向量 + 关键词
 collection = client.collections.get("Documents")
 response = collection.query.hybrid(
     query="机器学习入门",
@@ -298,14 +298,14 @@ import chromadb
 client = chromadb.PersistentClient(path="./chroma_db")
 collection = client.get_or_create_collection("docs")
 
-# 添加文档
+#​ 添加文档
 collection.add(
     documents=["文档内容1", "文档内容2"],
     metadatas=[{"source": "file1"}, {"source": "file2"}],
     ids=["id1", "id2"],
 )
 
-# 查询
+#​ 查询
 results = collection.query(
     query_texts=["搜索查询"],
     n_results=5,
@@ -434,7 +434,7 @@ class Reranker:
         ranked_indices = sorted(range(len(scores)), key=lambda i: scores[i], reverse=True)
         return [(documents[i], scores[i]) for i in ranked_indices[:top_k]]
 
-# 使用流程
+#​ 使用流程
 retriever = HybridRetriever(vector_store, documents, model)
 candidates = retriever.search(query, top_k=20)  # 粗检索
 reranker = Reranker()
@@ -463,7 +463,7 @@ Chunk 大小是影响 RAG 效果的关键参数：
 重叠（Overlap）确保相邻 chunk 之间有信息衔接：
 
 ```python
-# 推荐的重叠设置
+#​ 推荐的重叠设置
 chunk_configs = {
     "small": {"size": 200, "overlap": 20},   # 10% 重叠
     "medium": {"size": 400, "overlap": 40},   # 10% 重叠
@@ -833,7 +833,7 @@ class RAGEngine:
         }
 
 
-# 使用示例
+#​ 使用示例
 if __name__ == "__main__":
     kb = KnowledgeBase()
 

@@ -168,7 +168,7 @@ protected List<String> getCandidateConfigurations(
 在 SpringBoot 2.7 之前，自动配置类的声明统一放在 jar 包的 `META-INF/spring.factories` 文件中：
 
 ```properties
-# META-INF/spring.factories
+#​ META-INF/spring.factories
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
   com.example.autoconfigure.MyServiceAutoConfiguration,\
   com.example.autoconfigure.MyRepositoryAutoConfiguration
@@ -407,7 +407,7 @@ public class MyFeatureAutoConfiguration {
 **方式一：spring.factories（SpringBoot 2.x）**
 
 ```properties
-# META-INF/spring.factories
+#​ META-INF/spring.factories
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
   com.example.MyFeatureAutoConfiguration
 ```
@@ -415,14 +415,14 @@ org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 **方式二：AutoConfiguration.imports（SpringBoot 2.7+ / 3.x）**
 
 ```
-# META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
+#​ META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports
 com.example.MyFeatureAutoConfiguration
 ```
 
 ### 添加条件元数据（可选但推荐）
 
 ```properties
-# META-INF/spring-autoconfigure-metadata.properties
+#​ META-INF/spring-autoconfigure-metadata.properties
 com.example.MyFeatureAutoConfiguration.ConditionalOnClass=com.example.MyFeature
 com.example.MyFeatureAutoConfiguration.AutoConfigureAfter=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
 ```

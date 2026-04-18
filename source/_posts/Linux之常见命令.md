@@ -417,9 +417,9 @@ tar -xZf all.tar.z
 zip all.zip *.jpg
 unzip all.zip
 #对于.rar
-# tar -xzpvf rarlinux-x64-5.6.b5.tar.gz # 安装 RAR for Linux
-# cd rar 
-# make
+#​ tar -xzpvf rarlinux-x64-5.6.b5.tar.gz # 安装 RAR for Linux
+#​ cd rar 
+#​ make
 rar a all *.jpg
 unrar e all.rar
 ```

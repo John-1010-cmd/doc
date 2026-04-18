@@ -201,14 +201,14 @@ Kafka 的事务机制支持跨多个 Partition 的原子写入，主要用于 Co
    - 使用背压（Backpressure）机制
 
 ```bash
-# 查看消费者组延迟
+#​ 查看消费者组延迟
 kafka-consumer-groups.sh --bootstrap-server localhost:9092 \
     --describe --group order-service
 
-# 输出示例：
-# TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
-# order-events    0          12345           15678           3333
-# order-events    1          12200           15500           3300
+#​ 输出示例：
+#​ TOPIC           PARTITION  CURRENT-OFFSET  LOG-END-OFFSET  LAG
+#​ order-events    0          12345           15678           3333
+#​ order-events    1          12200           15500           3300
 ```
 
 ## Kafka 分区数如何设定？

@@ -599,7 +599,7 @@ public interface AiServiceClient {
 将 Prompt 模板存储在 Nacos 配置中心，实现动态更新：
 
 ```yaml
-# Nacos 配置 dataId: ai-prompts.yaml
+#​ Nacos 配置 dataId: ai-prompts.yaml
 prompts:
   code-review: |
     你是一位资深代码审查专家，请审查以下 {language} 代码：

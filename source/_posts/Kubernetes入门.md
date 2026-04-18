@@ -59,9 +59,9 @@ K8s 采用 Master-Node 架构，Master 负责集群管理，Node 负责运行工
 API Server 是 K8s 的入口，所有操作（kubectl、Dashboard、其他组件通信）都通过 REST API 与它交互：
 
 ```bash
-# kubectl 命令本质是调用 API Server 的 REST 接口
+#​ kubectl 命令本质是调用 API Server 的 REST 接口
 kubectl get pods
-# 等价于
+#​ 等价于
 curl -k https://master-ip:6443/api/v1/namespaces/default/pods
 ```
 
@@ -285,13 +285,13 @@ spec:
 ### 滚动更新流程
 
 ```bash
-# 更新镜像版本触发滚动更新
+#​ 更新镜像版本触发滚动更新
 kubectl set image deployment/order-service order-service=registry.example.com/order-service:v3
 
-# 查看滚动更新状态
+#​ 查看滚动更新状态
 kubectl rollout status deployment/order-service
 
-# 查看更新历史
+#​ 查看更新历史
 kubectl rollout history deployment/order-service
 ```
 
@@ -322,19 +322,19 @@ kubectl rollout history deployment/order-service
 ### 回滚操作
 
 ```bash
-# 查看历史版本
+#​ 查看历史版本
 kubectl rollout history deployment/order-service
 
-# 回滚到上一版本
+#​ 回滚到上一版本
 kubectl rollout undo deployment/order-service
 
-# 回滚到指定版本
+#​ 回滚到指定版本
 kubectl rollout undo deployment/order-service --to-revision=2
 
-# 暂停滚动更新（用于金丝雀发布）
+#​ 暂停滚动更新（用于金丝雀发布）
 kubectl rollout pause deployment/order-service
 
-# 恢复滚动更新
+#​ 恢复滚动更新
 kubectl rollout resume deployment/order-service
 ```
 
@@ -362,9 +362,9 @@ spec:
       targetPort: 8080   # Pod 端口
       protocol: TCP
 
-# 集群内访问方式：
-# 1. 服务名: order-service:80
-# 2. 完整 DNS: order-service.default.svc.cluster.local:80
+#​ 集群内访问方式：
+#​ 1. 服务名: order-service:80
+#​ 2. 完整 DNS: order-service.default.svc.cluster.local:80
 ```
 
 ### NodePort
@@ -385,8 +385,8 @@ spec:
       targetPort: 8080
       nodePort: 30080     # 指定 NodePort 端口
 
-# 外部访问方式：
-# http://<任意Node-IP>:30080
+#​ 外部访问方式：
+#​ http://<任意Node-IP>:30080
 ```
 
 ### LoadBalancer
@@ -406,9 +406,9 @@ spec:
     - port: 80
       targetPort: 8080
 
-# 云厂商会自动创建负载均衡器并分配外部 IP
-# kubectl get svc order-service-lb
-# EXTERNAL-IP: a1b2c3.elb.amazonaws.com
+#​ 云厂商会自动创建负载均衡器并分配外部 IP
+#​ kubectl get svc order-service-lb
+#​ EXTERNAL-IP: a1b2c3.elb.amazonaws.com
 ```
 
 ### Service 类型对比
@@ -440,7 +440,7 @@ kube-proxy 在每个 Node 上配置 iptables/IPVS 规则，将 Service IP 的流
 ConfigMap 存储非敏感的配置数据，将配置与镜像解耦：
 
 ```yaml
-# 从字面量创建
+#​ 从字面量创建
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -548,19 +548,19 @@ spec:
 Namespace 用于多租户隔离，将集群划分为多个虚拟集群：
 
 ```bash
-# 查看所有 Namespace
+#​ 查看所有 Namespace
 kubectl get namespaces
 
-# 创建 Namespace
+#​ 创建 Namespace
 kubectl create namespace production
 
-# 在指定 Namespace 中操作
+#​ 在指定 Namespace 中操作
 kubectl get pods -n production
 kubectl apply -f deployment.yaml -n production
 ```
 
 ```yaml
-# 定义 Namespace
+#​ 定义 Namespace
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -747,7 +747,7 @@ microservice-demo/
 #### Namespace
 
 ```yaml
-# k8s/namespace.yaml
+#​ k8s/namespace.yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -757,7 +757,7 @@ metadata:
 #### Deployment
 
 ```yaml
-# order-service/k8s/deployment.yaml
+#​ order-service/k8s/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -826,7 +826,7 @@ spec:
 #### Service
 
 ```yaml
-# order-service/k8s/service.yaml
+#​ order-service/k8s/service.yaml
 apiVersion: v1
 kind: Service
 metadata:
@@ -844,7 +844,7 @@ spec:
 #### Ingress
 
 ```yaml
-# k8s/ingress.yaml
+#​ k8s/ingress.yaml
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -877,29 +877,29 @@ spec:
 ### 部署命令
 
 ```bash
-# 1. 创建 Namespace
+#​ 1. 创建 Namespace
 kubectl apply -f k8s/namespace.yaml
 
-# 2. 创建配置和密钥
+#​ 2. 创建配置和密钥
 kubectl apply -f order-service/k8s/configmap.yaml
 kubectl apply -f order-service/k8s/secret.yaml
 
-# 3. 部署服务
+#​ 3. 部署服务
 kubectl apply -f order-service/k8s/deployment.yaml
 kubectl apply -f order-service/k8s/service.yaml
 kubectl apply -f order-service/k8s/hpa.yaml
 
-# 4. 部署 Ingress
+#​ 4. 部署 Ingress
 kubectl apply -f k8s/ingress.yaml
 
-# 5. 验证部署
+#​ 5. 验证部署
 kubectl get all -n microservice-demo
 kubectl get pods -n microservice-demo -w
 
-# 6. 查看日志
+#​ 6. 查看日志
 kubectl logs -f deployment/order-service -n microservice-demo
 
-# 7. 查看事件（排查问题）
+#​ 7. 查看事件（排查问题）
 kubectl get events -n microservice-demo --sort-by='.lastTimestamp'
 ```
 
